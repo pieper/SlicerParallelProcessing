@@ -36,3 +36,9 @@ The basic idea is:
     * override the pickledInput method to create the format your processing script expects
     * override the usePickledOutput method to consume what your script creates
     * use the ProcessingLogic class to add instances of your class and trigger them to run
+    
+## Demo
+
+Here's what the self-test looks like
+    
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/lo804cRDmpQ/0.jpg)](http://www.youtube.com/watch?v=lo804cRDmpQ "What the self test looks like")
