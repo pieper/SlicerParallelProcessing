@@ -82,7 +82,7 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
         self.processBoxes[processState] = processBox
         self.processLabels[processState] = processLabel
 
-    self.maximumRunningProcessesSpinBox.connect("valueChanged(double)", self.onMaximumChanged)
+    self.maximumRunningProcessesSpinBox.valueChanged.connect(self.onMaximumChanged)
 
     node = self.logic.getParameterNode()
     self.nodeObserverTag = node.AddObserver(vtk.vtkCommand.ModifiedEvent, self.onNodeModified)
@@ -107,10 +107,10 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
       for processState in self.logic.processStates:
         labelHTML = "<ul>"
         for processName in state[processState]:
-          labelHTML += "<li>{}</li>".format(processName)
+          labelHTML += f"<li>{processName}</li>"
         labelHTML += "</ul>"
         self.processLabels[processState].text = labelHTML
-        self.statusLabel.text += "{}: {}, ".format(processState, len(state[processState]))
+        self.statusLabel.text += f"{processState}: {len(state[processState])}, "
       self.statusLabel.text = self.statusLabel.text[:-2] # remove last comma and space
     else:
       self.statusLabel.text = "No state available"
@@ -167,41 +167,40 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
       self.completedCallback()
     self.run()
 
-class Process(object):
+class Process(qt.QProcess):
   """TODO: maybe this should be a subclass of QProcess"""
 
   def __init__(self, scriptPath):
+    super().__init__()
     self.name = "Process"
     self.processState = "Pending"
     self.scriptPath = scriptPath
-    self.qprocess = None
     self.debug = False
 
   def run(self, logic):
-    self.qprocess = qt.QProcess()
-    self.qprocess.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
-    self.qprocess.connect('started()', self.onStarted)
+    self.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
+    self.connect('started()', self.onStarted)
     finishedSlot = lambda exitCode, exitStatus : self.onFinished(logic, exitCode, exitStatus)
-    self.qprocess.connect('finished(int,QProcess::ExitStatus)', finishedSlot)
-    self.qprocess.start("PythonSlicer", [self.scriptPath,])
+    self.connect('finished(int,QProcess::ExitStatus)', finishedSlot)
+    self.start("PythonSlicer", [self.scriptPath,])
 
   def onStateChanged(self, newState):
     logging.info('-'*40)
-    logging.info('qprocess state code is: %d' % self.qprocess.state())
-    logging.info('qprocess error code is: %d' % self.qprocess.error())
+    logging.info(f'qprocess state code is: {self.state()}')
+    logging.info(f'qprocess error code is: {self.error()}')
 
   def onStarted(self):
     logging.info("writing")
     if self.debug:
-      fp = open("/tmp/pickledInput", "w")
-      fp.buffer.write(self.pickledInput())
+      with open("/tmp/pickledInput", "w") as fp:
+        fp.buffer.write(self.pickledInput())
       print("PythonSlicer", [self.scriptPath,])
-    self.qprocess.write(self.pickledInput())
-    self.qprocess.closeWriteChannel()
+    self.write(self.pickledInput())
+    self.closeWriteChannel()
 
   def onFinished(self, logic, exitCode, exitStatus):
-    logging.info('finished, code {}, status {}'.format(exitCode, exitStatus))
-    stdout = self.qprocess.readAllStandardOutput()
+    logging.info(f'finished, code {exitCode}, status {exitStatus}')
+    stdout = self.readAllStandardOutput()
     self.usePickledOutput(stdout.data())
     logic.onProcessFinished(self)
 
@@ -214,7 +213,7 @@ class VolumeFilterProcess(Process):
     Process.__init__(self, scriptPath)
     self.volumeNode = volumeNode
     self.radius = radius
-    self.name = "Filter {}".format(radius)
+    self.name = f"Filter {radius}"
 
   def pickledInput(self):
     input = {}
@@ -239,7 +238,7 @@ class ModelFilterProcess(Process):
   def __init__(self, scriptPath, modelNode, iteration):
     Process.__init__(self, scriptPath)
     self.modelNode = modelNode
-    self.name = "Filter {}-{}".format(modelNode.GetName(), iteration)
+    self.name = f"Filter {modelNode.GetName()}-{iteration}"
 
   def arrayFromModelPolyIds(self, modelNode):
     from vtk.util.numpy_support import vtk_to_numpy
