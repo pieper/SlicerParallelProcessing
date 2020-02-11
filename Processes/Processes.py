@@ -1,5 +1,6 @@
 import json
 import os
+import abc
 import pickle
 import unittest
 import vtk, qt, ctk, slicer
@@ -204,6 +205,18 @@ class Process(qt.QProcess):
     self.usePickledOutput(stdout.data())
     logic.onProcessFinished(self)
 
+  @abc.abstractmethod
+  def pickledInput(self):
+    pass
+
+  @abc.abstractmethod
+  def usePickledOutput(self, pickledOutput):
+    pass
+
+  @abc.abstractmethod
+  def decodeOutput(self, pickledOutput):
+    pass
+
 
 class VolumeFilterProcess(Process):
   """This is an example of using a process to operate on volume data
@@ -225,12 +238,15 @@ class VolumeFilterProcess(Process):
     return pickle.dumps(input)
 
   def usePickledOutput(self, pickledOutput):
-    output = pickle.loads(pickledOutput)
+    output = self.decodeOutput(pickledOutput)
     ijkToRAS = vtk.vtkMatrix4x4()
     self.volumeNode.GetIJKToRASMatrix(ijkToRAS)
     slicer.util.addVolumeFromArray(output['array'], ijkToRAS, self.name)
     import CompareVolumes
     CompareVolumes.CompareVolumesLogic().viewersPerVolume()
+
+  def decodeOutput(self, pickledOutput):
+    return pickle.loads(pickledOutput)
 
 class ModelFilterProcess(Process):
   """This is an example of running a process to operate on model data"""
@@ -258,10 +274,13 @@ class ModelFilterProcess(Process):
     return pickle.dumps(input)
 
   def usePickledOutput(self, pickledOutput):
-    output = pickle.loads(pickledOutput)
+    output = self.decodeOutput(pickledOutput)
     vertexArray = slicer.util.arrayFromModelPoints(self.modelNode)
     vertexArray[:] = output['vertexArray']
     slicer.util.arrayFromModelPointsModified(self.modelNode)
+
+  def decodeOutput(self, pickledOutput):
+    return pickle.loads(pickledOutput)
 
 class ProcessesTest(ScriptedLoadableModuleTest):
 
