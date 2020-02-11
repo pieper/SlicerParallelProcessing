@@ -30,7 +30,7 @@ The basic idea is:
     * uses that data as needed
     * builds an output dictionary of results
     * pickles the output and writes the binary to stdout
-* within you Slicer module you do the following
+* within your Slicer module you do the following
     * create a subclass of the Process class
     * add whatever parameters are needed in the constructor
     * override the pickledInput method to create the format your processing script expects
@@ -47,17 +47,17 @@ Here's what the self-test looks like.  What happens is that a dummy sphere is ad
 * GUI
     * right now the gui just shows the status of processes, but it could be made more useful to show how long a process has been running or other stats like memory consumption
     * it could be useful to be able to cancel a process from the gui
-    * there's currently no way to clear the output
+    * there's currently no way to clear the output list of completed processes
 * Logic
-    * Other than the number of running processes there's no way to load balance
-    * On the whole though it's good that the logic class is very clean and short
+    * Other than limiting the number of running processes there's no way to load balance
+    * On the whole though it's good that the logic class is very clean and short so we shouldn't overcomplicate it
 * Architecture and style
     * Could be good to break up the code into multiple files if it gets much longer
-    * A helper package to pickle vtk and mrml classes would be nice independent of this
-    * The process input/output shouldn't depend on only pickling, any ascii or binary data would work
+    * A helper package to pickle vtk and mrml classes would be nice, but it should be independent of this module
+    * Process input/output shouldn't be restricted to only pickling, any ascii or binary data would work
     * Some more worked out examples of different use cases could help confirm that the design is workable
 * Additional functionality directions
     * A process could be kept alive and exchange multiple messages (may not be worth the complexity)
     * Process invocations could be wrapped in ssh for remote execution on cluster or cloud compute resources.  The remote account would only need to have a compatible installation of Slicer (PythonSlicer) in the path.
     * Cloud computing resources (virtual machines) could even be created on the fly to perform bigger jobs
-    
+    * The processes don't need to only operate on data that exists in Slicer, but instead the processes could download from URLs and similarly could upload results elsewhere; this could be useful in the case where Slicer's UI is used to provide interactive inputs or spot check and QC results.
