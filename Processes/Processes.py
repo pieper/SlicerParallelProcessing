@@ -1,11 +1,11 @@
-import json
-import os
 import abc
+import json
+import logging
+import os
 import pickle
 import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
-import logging
 
 #
 # Processes
@@ -60,6 +60,7 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
     self.maximumRunningProcessesSpinBox = ctk.ctkDoubleSpinBox()
     self.maximumRunningProcessesSpinBox.minimum = 1
     self.maximumRunningProcessesSpinBox.decimals = 0
+    self.maximumRunningProcessesSpinBox.value = self.logic.maximumRunningProcesses
     parametersFormLayout.addRow("Maximum running processes", self.maximumRunningProcessesSpinBox)
 
     processesCollapsibleButton = ctk.ctkCollapsibleButton()
@@ -83,7 +84,7 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
         self.processBoxes[processState] = processBox
         self.processLabels[processState] = processLabel
 
-    self.maximumRunningProcessesSpinBox.valueChanged.connect(self.onMaximumChanged)
+    self.maximumRunningProcessesSpinBox.connect("valueChanged(double)", self.onMaximumChanged)
 
     node = self.logic.getParameterNode()
     self.nodeObserverTag = node.AddObserver(vtk.vtkCommand.ModifiedEvent, self.onNodeModified)
@@ -126,6 +127,8 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
   def __init__(self, parent = None, maximumRunningProcesses=None, completedCallback=lambda : None):
     ScriptedLoadableModuleLogic.__init__(self, parent)
     if not maximumRunningProcesses:
+      self.maximumRunningProcesses = os.cpu_count()
+    else:
       self.maximumRunningProcesses = os.cpu_count()
     self.completedCallback = completedCallback
 
@@ -176,7 +179,6 @@ class Process(qt.QProcess):
     self.name = "Process"
     self.processState = "Pending"
     self.scriptPath = scriptPath
-    self.debug = False
 
   def run(self, logic):
     self.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
@@ -191,30 +193,33 @@ class Process(qt.QProcess):
     logging.info(f'qprocess error code is: {self.error()}')
 
   def onStarted(self):
-    logging.info("writing")
-    if self.debug:
-      with open("/tmp/pickledInput", "w") as fp:
-        fp.buffer.write(self.pickledInput())
+    """ This method will write the processInput to the stdin
+    of the process.  If you want to debug your processing script
+    outside of this module, you can add some code like this:
+
+      with open("/tmp/processInput", "w") as fp:
+        fp.buffer.write(self.processInput())
       print("PythonSlicer", [self.scriptPath,])
-    self.write(self.pickledInput())
+
+    and then run the PythonSlicer executable with the input redirected
+    from the tmp file.
+    """
+    logging.info("writing")
+    self.write(self.processInput())
     self.closeWriteChannel()
 
   def onFinished(self, logic, exitCode, exitStatus):
     logging.info(f'finished, code {exitCode}, status {exitStatus}')
     stdout = self.readAllStandardOutput()
-    self.usePickledOutput(stdout.data())
+    self.useProcessOutput(stdout.data())
     logic.onProcessFinished(self)
 
   @abc.abstractmethod
-  def pickledInput(self):
+  def processInput(self):
     pass
 
   @abc.abstractmethod
-  def usePickledOutput(self, pickledOutput):
-    pass
-
-  @abc.abstractmethod
-  def decodeOutput(self, pickledOutput):
+  def useProcessOutput(self, processOutput):
     pass
 
 
@@ -228,7 +233,7 @@ class VolumeFilterProcess(Process):
     self.radius = radius
     self.name = f"Filter {radius}"
 
-  def pickledInput(self):
+  def processInput(self):
     input = {}
     input['array'] = slicer.util.arrayFromVolume(self.volumeNode)
     input['spacing'] = self.volumeNode.GetSpacing()
@@ -237,16 +242,14 @@ class VolumeFilterProcess(Process):
     input['radius'] = self.radius
     return pickle.dumps(input)
 
-  def usePickledOutput(self, pickledOutput):
-    output = self.decodeOutput(pickledOutput)
+  def useProcessOutput(self, processOutput):
+    output = pickle.loads(processOutput)
     ijkToRAS = vtk.vtkMatrix4x4()
     self.volumeNode.GetIJKToRASMatrix(ijkToRAS)
     slicer.util.addVolumeFromArray(output['array'], ijkToRAS, self.name)
     import CompareVolumes
     CompareVolumes.CompareVolumesLogic().viewersPerVolume()
 
-  def decodeOutput(self, pickledOutput):
-    return pickle.loads(pickledOutput)
 
 class ModelFilterProcess(Process):
   """This is an example of running a process to operate on model data"""
@@ -262,7 +265,7 @@ class ModelFilterProcess(Process):
     narray = vtk_to_numpy(arrayVtk)
     return narray
 
-  def pickledInput(self):
+  def processInput(self):
     if hasattr(slicer.util, "arrayFromModelPolyIds"):
       arrayFromModelPolyIds = slicer.util.arrayFromModelPolyIds
     else:
@@ -273,14 +276,12 @@ class ModelFilterProcess(Process):
     input['idArray'] = arrayFromModelPolyIds(self.modelNode)
     return pickle.dumps(input)
 
-  def usePickledOutput(self, pickledOutput):
-    output = self.decodeOutput(pickledOutput)
+  def useProcessOutput(self, processOutput):
+    output = pickle.loads(processOutput)
     vertexArray = slicer.util.arrayFromModelPoints(self.modelNode)
     vertexArray[:] = output['vertexArray']
     slicer.util.arrayFromModelPointsModified(self.modelNode)
 
-  def decodeOutput(self, pickledOutput):
-    return pickle.loads(pickledOutput)
 
 class ProcessesTest(ScriptedLoadableModuleTest):
 
