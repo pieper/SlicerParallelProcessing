@@ -169,7 +169,6 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     self.run()
 
 class Process(qt.QProcess):
-  """TODO: maybe this should be a subclass of QProcess"""
 
   def __init__(self, scriptPath):
     super().__init__()
@@ -179,13 +178,13 @@ class Process(qt.QProcess):
     self.debug = False
 
   def run(self, logic):
-    self.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
-    self.connect('started()', self.onStarted)
+    self.stateChanged.connect(self.onStateChanged)
+    self.started.connect(self.onStarted)
     finishedSlot = lambda exitCode, exitStatus : self.onFinished(logic, exitCode, exitStatus)
     self.connect('finished(int,QProcess::ExitStatus)', finishedSlot)
     self.start("PythonSlicer", [self.scriptPath,])
 
-  def onStateChanged(self, newState):
+  def onStateChanged(self):
     logging.info('-'*40)
     logging.info(f'qprocess state code is: {self.state()}')
     logging.info(f'qprocess error code is: {self.error()}')
@@ -195,7 +194,6 @@ class Process(qt.QProcess):
     if self.debug:
       with open("/tmp/pickledInput", "w") as fp:
         fp.buffer.write(self.pickledInput())
-      print("PythonSlicer", [self.scriptPath,])
     self.write(self.pickledInput())
     self.closeWriteChannel()
 
