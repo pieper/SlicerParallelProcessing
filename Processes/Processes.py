@@ -198,7 +198,7 @@ class Process(qt.QProcess):
     self.connect('finished(int,QProcess::ExitStatus)', finishedSlot)
     self.start("PythonSlicer", [self.scriptPath,])
 
-  def onStateChanged(self):
+  def onStateChanged(self, newState):
     logging.info('-'*40)
     logging.info(f'qprocess state code is: {self.state()}')
     logging.info(f'qprocess error code is: {self.error()}')
