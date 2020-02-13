@@ -6,7 +6,6 @@ import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
-import time
 
 #
 # Processes
@@ -145,9 +144,10 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
       self.completedCallback()
       return  # Release exit call
     else:
-      time.sleep(1)
-      self.run()
-    self.__checkFishished()  # Holds exit call until it is really finished
+      while len(self.processLists["Running"]) > 0:
+        for process in self.processLists["Running"]:
+          process.waitForFinished() # Holds exit call until it is really finished
+          self.run()  
 
   def __exit__(self, type, value, tb):
       self.__checkFishished()
