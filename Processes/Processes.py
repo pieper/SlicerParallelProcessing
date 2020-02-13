@@ -192,8 +192,8 @@ class Process(qt.QProcess):
     self.debug = False
 
   def run(self, logic):
-    self.stateChanged.connect(self.onStateChanged)
-    self.started.connect(self.onStarted)
+    self.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
+    self.connect('started()', self.onStarted)
     finishedSlot = lambda exitCode, exitStatus : self.onFinished(logic, exitCode, exitStatus)
     self.connect('finished(int,QProcess::ExitStatus)', finishedSlot)
     self.start("PythonSlicer", [self.scriptPath,])
