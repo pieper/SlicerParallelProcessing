@@ -6,6 +6,7 @@ import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
+import time
 
 #
 # Processes
@@ -136,6 +137,21 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     for processState in self.processStates:
         self.processLists[processState] = []
 
+  def __enter__(self):
+    return self
+
+  def __checkFishished(self):
+    if len(self.processLists["Running"]) == 0 and len(self.processLists["Pending"]) == 0:
+      self.completedCallback()
+      return  # Release exit call
+    else:
+      time.sleep(1)
+      self.run()
+    self.__checkFishished()  # Holds exit call until it is really finished
+
+  def __exit__(self, type, value, tb):
+      self.__checkFishished()
+
   def setMaximumRunningProcesses(self, value):
     self.maximumRunningProcesses = value
 
@@ -164,9 +180,7 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     self.processLists["Running"].remove(process)
     self.processLists["Completed"].append(process)
     self.saveState()
-    if len(self.processLists["Running"]) == 0 and len(self.processLists["Pending"]) == 0:
-      self.completedCallback()
-    self.run()
+    self.__checkFishished()
 
 class Process(qt.QProcess):
 
@@ -211,10 +225,6 @@ class Process(qt.QProcess):
   def usePickledOutput(self, pickledOutput):
     pass
 
-  @abc.abstractmethod
-  def decodeOutput(self, pickledOutput):
-    pass
-
 
 class VolumeFilterProcess(Process):
   """This is an example of using a process to operate on volume data
@@ -236,15 +246,13 @@ class VolumeFilterProcess(Process):
     return pickle.dumps(input)
 
   def usePickledOutput(self, pickledOutput):
-    output = self.decodeOutput(pickledOutput)
+    output = pickle.loads(pickledOutput)
     ijkToRAS = vtk.vtkMatrix4x4()
     self.volumeNode.GetIJKToRASMatrix(ijkToRAS)
     slicer.util.addVolumeFromArray(output['array'], ijkToRAS, self.name)
     import CompareVolumes
     CompareVolumes.CompareVolumesLogic().viewersPerVolume()
 
-  def decodeOutput(self, pickledOutput):
-    return pickle.loads(pickledOutput)
 
 class ModelFilterProcess(Process):
   """This is an example of running a process to operate on model data"""
@@ -272,13 +280,11 @@ class ModelFilterProcess(Process):
     return pickle.dumps(input)
 
   def usePickledOutput(self, pickledOutput):
-    output = self.decodeOutput(pickledOutput)
+    output = pickle.loads(pickledOutput)
     vertexArray = slicer.util.arrayFromModelPoints(self.modelNode)
     vertexArray[:] = output['vertexArray']
     slicer.util.arrayFromModelPointsModified(self.modelNode)
 
-  def decodeOutput(self, pickledOutput):
-    return pickle.loads(pickledOutput)
 
 class ProcessesTest(ScriptedLoadableModuleTest):
 
