@@ -318,15 +318,17 @@ class ProcessesTest(ScriptedLoadableModuleTest):
       testClass.setUp()
       testClass.test_VolumeProcesses()
 
-    logic = ProcessesLogic(completedCallback=lambda : onProcessesCompleted(self))
-    thisPath = qt.QFileInfo(__file__).path()
-    scriptPath = os.path.join(thisPath, "Resources", "ProcessScripts", "modelFilter.slicer.py")
+    with ProcessesLogic(completedCallback=lambda : onProcessesCompleted(self)) as logic:
+      thisPath = qt.QFileInfo(__file__).path()
+      scriptPath = os.path.join(thisPath, "Resources", "ProcessScripts", "modelFilter.slicer.py")
 
-    for iteration in range(50):
-      filterProcess = ModelFilterProcess(scriptPath, modelNode, iteration)
-      logic.addProcess(filterProcess)
+      for iteration in range(50):
+        filterProcess = ModelFilterProcess(scriptPath, modelNode, iteration)
+        logic.addProcess(filterProcess)
 
-    logic.run()
+      logic.run()
+
+    print(logic.processLists)  #  logic is still available!!
 
 
   def test_VolumeProcesses(self):
@@ -340,12 +342,14 @@ class ProcessesTest(ScriptedLoadableModuleTest):
       # when test finishes, we succeeded!
       testClass.delayDisplay('Test passed!')
 
-    logic = ProcessesLogic(completedCallback=lambda : onProcessesCompleted(self))
-    thisPath = qt.QFileInfo(__file__).path()
-    scriptPath = os.path.join(thisPath, "Resources", "ProcessScripts", "volumeFilter.slicer.py")
+    with ProcessesLogic(completedCallback=lambda : onProcessesCompleted(self)) as logic:
+      thisPath = qt.QFileInfo(__file__).path()
+      scriptPath = os.path.join(thisPath, "Resources", "ProcessScripts", "volumeFilter.slicer.py")
 
-    for radius in range(5):
-      filterProcess = VolumeFilterProcess(scriptPath, volumeNode, radius*5)
-      logic.addProcess(VolumeFilterProcess(scriptPath, volumeNode, radius))
+      for radius in range(5):
+        filterProcess = VolumeFilterProcess(scriptPath, volumeNode, radius*5)
+        logic.addProcess(VolumeFilterProcess(scriptPath, volumeNode, radius))
 
-    logic.run()
+      logic.run()
+
+    print(logic.processLists)
