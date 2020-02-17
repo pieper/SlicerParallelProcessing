@@ -133,11 +133,34 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     self.completedCallback = completedCallback
 
     self.QProcessStates = {0: 'NotRunning', 1: 'Starting', 2: 'Running',}
-
     self.processStates = ["Pending", "Running", "Completed"]
+    self.__initializeProcessLists()
+
+  def __initializeProcessLists(self):
     self.processLists = {}
     for processState in self.processStates:
-        self.processLists[processState] = []
+      self.processLists[processState] = []
+
+  def __enter__(self):
+      return self
+
+  def __terminate(self):
+    if self.processLists["Running"]:
+      for process in self.processLists["Running"]:
+        process.terminate()  
+    self.__initializeProcessLists()
+
+  def __checkFishished(self):
+    if not self.processLists["Running"] and not self.processLists["Pending"]:
+      self.completedCallback()
+    else:
+      self.run()
+
+  def waitForFinished(self):
+    while  self.processLists["Running"]:
+      self.run()
+      self.processLists["Running"][0].waitForFinished()
+      self.__checkFishished()
 
   def setMaximumRunningProcesses(self, value):
     self.maximumRunningProcesses = value
@@ -155,7 +178,7 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     self.processLists["Pending"].append(process)
 
   def run(self):
-    while len(self.processLists["Pending"]) > 0:
+    while self.processLists["Pending"]:
       if len(self.processLists["Running"]) >= self.maximumRunningProcesses:
         break
       process = self.processLists["Pending"].pop()
@@ -167,9 +190,7 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     self.processLists["Running"].remove(process)
     self.processLists["Completed"].append(process)
     self.saveState()
-    if len(self.processLists["Running"]) == 0 and len(self.processLists["Pending"]) == 0:
-      self.completedCallback()
-    self.run()
+    self.__checkFishished()
 
 class Process(qt.QProcess):
   """TODO: maybe this should be a subclass of QProcess"""
@@ -346,3 +367,5 @@ class ProcessesTest(ScriptedLoadableModuleTest):
       logic.addProcess(VolumeFilterProcess(scriptPath, volumeNode, radius))
 
     logic.run()
+
+    logic.waitForFinished()  # Optional
