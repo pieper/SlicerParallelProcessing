@@ -224,19 +224,19 @@ class Process(qt.QProcess):
     logging.info(f'qprocess error code is: {self.error()}')
 
   def onStarted(self):
-    """ This method will write the processInput to the stdin
+    """ This method will write the prepareProcessInput to the stdin
     of the process.  If you want to debug your processing script
     outside of this module, you can add some code like this:
 
-      with open("/tmp/processInput", "w") as fp:
-        fp.buffer.write(self.processInput())
+      with open("/tmp/inputToProcess", "w") as fp:
+        fp.buffer.write(self.inputToProcess())
       print("PythonSlicer", [self.scriptPath,])
 
     and then run the PythonSlicer executable with the input redirected
     from the tmp file.
     """
     logging.info("writing")
-    self.write(self.processInput())
+    self.write(self.prepareProcessInput())
     self.closeWriteChannel()
 
   def onFinished(self, logic, exitCode, exitStatus):
@@ -246,7 +246,7 @@ class Process(qt.QProcess):
     logic.onProcessFinished(self)
 
   @abc.abstractmethod
-  def processInput(self):
+  def prepareProcessInput(self):
     pass
 
   @abc.abstractmethod
@@ -264,7 +264,7 @@ class VolumeFilterProcess(Process):
     self.radius = radius
     self.name = f"Filter {radius}"
 
-  def processInput(self):
+  def prepareProcessInput(self):
     input = {}
     input['array'] = slicer.util.arrayFromVolume(self.volumeNode)
     input['spacing'] = self.volumeNode.GetSpacing()
@@ -296,7 +296,7 @@ class ModelFilterProcess(Process):
     narray = vtk_to_numpy(arrayVtk)
     return narray
 
-  def processInput(self):
+  def prepareProcessInput(self):
     if hasattr(slicer.util, "arrayFromModelPolyIds"):
       arrayFromModelPolyIds = slicer.util.arrayFromModelPolyIds
     else:
