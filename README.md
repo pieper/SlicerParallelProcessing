@@ -36,7 +36,9 @@ The basic idea is:
     * override the pickledInput method to create the format your processing script expects
     * override the usePickledOutput method to consume what your script creates
     * use the ProcessingLogic class to add instances of your class and trigger them to run
+    * use the completedCallback function to trigger next steps when processes have all finished
     
+    * optionally block using waitForFinished (don't use this unless you really need to since it is a blocking busy loop)
 ## Demo
 
 Here's what the self-test looks like.  What happens is that a dummy sphere is added to the scene 50 processes are queued, each of which applies a random offet to each of the vertices.  The machine running the test has 12 cores, so you see the processes being executed aproximately in groups of 12.  The second part shows running 5 parallel image filtering operations with different filter kernel radius values and then loading the results.  Code for these demos is in this repository.

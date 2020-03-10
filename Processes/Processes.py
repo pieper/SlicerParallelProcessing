@@ -147,7 +147,7 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
   def __terminate(self):
     if self.processLists["Running"]:
       for process in self.processLists["Running"]:
-        process.terminate()  
+        process.terminate()
     self.__initializeProcessLists()
 
   def __checkFishished(self):
@@ -157,6 +157,15 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
       self.run()
 
   def waitForFinished(self):
+    """This puts the main thread of Slicer in a tight busy loop
+    waiting for the subprocesses to finish.  This allows you run background
+    jobs from a synchronous (non-event driven) python script
+    but be aware that it will eat up one process core and will also cause the
+    application to hang until all processes complete.
+    TODO: something similar to this could be implemented by doing blocking
+    reads from the stdout of the processes so the main application process
+    would not eat a core.
+    """
     while  self.processLists["Running"]:
       self.run()
       self.processLists["Running"][0].waitForFinished()
@@ -193,7 +202,8 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     self.__checkFishished()
 
 class Process(qt.QProcess):
-  """TODO: maybe this should be a subclass of QProcess"""
+  """
+  """
 
   def __init__(self, scriptPath):
     super().__init__()
