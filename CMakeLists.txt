@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.13.4)
 
-project(SlicerProcesses)
+project(ParallelProcessing)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/SlicerProcesses")
+set(EXTENSION_HOMEPAGE "https://github.com/pieper/SlicerParallelProcessing")
 set(EXTENSION_CATEGORY "Utilities")
 set(EXTENSION_CONTRIBUTORS "Steve Pieper (Isomics, Inc.)")
 set(EXTENSION_DESCRIPTION "Manage helper processes to perform background tasks in parallel.")
-set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/SlicerProcesses.png")
-set(EXTENSION_SCREENSHOTURLS "http://www.example.com/Slicer/Extensions/SlicerProcesses/Screenshots/1.png")
+set(EXTENSION_ICONURL "https://github.com/pieper/SlicerParallelProcessing/raw/master/ParallelProcessing.png")
+set(EXTENSION_SCREENSHOTURLS "https://camo.githubusercontent.com/f32d3911615ff1ff73af2e453fb8d1233f43a831339317618229a6e622859a01/687474703a2f2f696d672e796f75747562652e636f6d2f76692f6c6f3830346352446d70512f302e6a7067")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated string, a list or 'NA' if any
 
 #-----------------------------------------------------------------------------
