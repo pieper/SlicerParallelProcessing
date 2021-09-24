@@ -1,6 +1,6 @@
-# SlicerParallelProcessing
+# ParallelProcessing
 
-Currently contains Processes.
+ParallelProcessing extension for [3D Slicer](https://www.slicer.org]. Currently contains Processes module.
 
 ## Processes
 
