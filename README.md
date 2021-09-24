@@ -1,4 +1,8 @@
-# SlicerProcesses
+# SlicerParallelProcessing
+
+Currently contains Processes.
+
+## Processes
 
 Slicer modules for running subprocesses to operate on data in parallel.
 
@@ -40,13 +44,13 @@ The basic idea is:
     * optionally block using waitForFinished (don't use this unless you really need to since it is a blocking busy loop)
     * for finer grained status updates observe the moduule node as is done in the gui widget of the module
 
-## Demo
+### Demo
 
 Here's what the self-test looks like.  What happens is that a dummy sphere is added to the scene 50 processes are queued, each of which applies a random offet to each of the vertices.  The machine running the test has 12 cores, so you see the processes being executed aproximately in groups of 12.  The second part shows running 5 parallel image filtering operations with different filter kernel radius values and then loading the results.  Code for these demos is in this repository.
 
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/lo804cRDmpQ/0.jpg)](http://www.youtube.com/watch?v=lo804cRDmpQ "What the self test looks like")
 
-## Future Directions
+### Future Directions
 * GUI
     * right now the gui just shows the status of processes, but it could be made more useful to show how long a process has been running or other stats like memory consumption
     * it could be useful to be able to cancel a process from the gui
@@ -64,3 +68,7 @@ Here's what the self-test looks like.  What happens is that a dummy sphere is ad
     * Process invocations could be wrapped in ssh for remote execution on cluster or cloud compute resources.  The remote account would only need to have a compatible installation of Slicer (PythonSlicer) in the path.
     * Cloud computing resources (virtual machines) could even be created on the fly to perform bigger jobs
     * The processes don't need to only operate on data that exists in Slicer, but instead the processes could download from URLs and similarly could upload results elsewhere; this could be useful in the case where Slicer's UI is used to provide interactive inputs or spot check and QC results.
+
+# Future
+
+Add other parallel processing modules
