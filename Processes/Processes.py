@@ -132,7 +132,6 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
       self.maximumRunningProcesses = os.cpu_count()
     self.completedCallback = completedCallback
 
-    self.QProcessStates = {0: 'NotRunning', 1: 'Starting', 2: 'Running',}
     self.processStates = ["Pending", "Running", "Completed", "Failed"]
     self.__initializeProcessLists()
 
@@ -208,6 +207,11 @@ class Process(qt.QProcess):
   """
   """
 
+  QProcessStateNames = {qt.QProcess.NotRunning: 'NotRunning', qt.QProcess.Starting: 'Starting', qt.QProcess.Running: 'Running'}
+  QProcessErrorNames = {qt.QProcess.FailedToStart: 'FailedToStart', qt.QProcess.Crashed: 'Crashed', qt.QProcess.Timedout: 'Timedout',
+    qt.QProcess.WriteError: 'WriteError', qt.QProcess.ReadError: 'ReadError', qt.QProcess.UnknownError: 'UnknownError'}
+  QProcessExitStatusNames = {qt.QProcess.NormalExit: 'NormalExit', qt.QProcess.CrashExit: 'CrashExit'}
+
   def __init__(self, scriptPath):
     super().__init__()
     self.name = "Process"
@@ -223,9 +227,7 @@ class Process(qt.QProcess):
     self.start("PythonSlicer", [self.scriptPath,])
 
   def onStateChanged(self, newState):
-    logging.info('-'*40)
-    logging.info(f'qprocess state code is: {self.state()}')
-    logging.info(f'qprocess error code is: {self.error()}')
+    logging.info(f'{self.name}: state: {Process.QProcessStateNames[self.state()]}, last error: {Process.QProcessErrorNames[self.error()]}')
 
   def onStarted(self):
     """ This method will write the prepareProcessInput to the stdin
@@ -239,12 +241,12 @@ class Process(qt.QProcess):
     and then run the PythonSlicer executable with the input redirected
     from the tmp file.
     """
-    logging.info("writing")
+    logging.info(f"{self.name}: writing input")
     self.write(self.prepareProcessInput())
     self.closeWriteChannel()
 
   def onFinished(self, logic, exitCode, exitStatus):
-    logging.info(f'finished, code {exitCode}, status {exitStatus}')
+    logging.info(f'{self.name}: finished, exit code: {exitCode}, exit status: {Process.QProcessExitStatusNames[exitStatus]}')
     stdout = self.readAllStandardOutput()
     try:
       self.useProcessOutput(stdout.data())
