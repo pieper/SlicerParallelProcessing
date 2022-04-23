@@ -18,7 +18,7 @@ class Processes(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Processes" # TODO make this more human readable by adding spaces
+    self.parent.title = "Processes"
     self.parent.categories = ["Developer Tools"]
     self.parent.dependencies = []
     self.parent.contributors = ["Steve Pieper (Isomics, Inc.)"]
@@ -133,7 +133,7 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
     self.completedCallback = completedCallback
 
     self.QProcessStates = {0: 'NotRunning', 1: 'Starting', 2: 'Running',}
-    self.processStates = ["Pending", "Running", "Completed"]
+    self.processStates = ["Pending", "Running", "Completed", "Failed"]
     self.__initializeProcessLists()
 
   def __initializeProcessLists(self):
@@ -197,7 +197,10 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
 
   def onProcessFinished(self,process):
     self.processLists["Running"].remove(process)
-    self.processLists["Completed"].append(process)
+    if process.success:
+      self.processLists["Completed"].append(process)
+    else:
+      self.processLists["Failed"].append(process)
     self.saveState()
     self.__checkFishished()
 
@@ -210,6 +213,7 @@ class Process(qt.QProcess):
     self.name = "Process"
     self.processState = "Pending"
     self.scriptPath = scriptPath
+    self.success = True
 
   def run(self, logic):
     self.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
@@ -229,7 +233,7 @@ class Process(qt.QProcess):
     outside of this module, you can add some code like this:
 
       with open("/tmp/inputToProcess", "w") as fp:
-        fp.buffer.write(self.inputToProcess())
+        fp.buffer.write(self.prepareProcessInput())
       print("PythonSlicer", [self.scriptPath,])
 
     and then run the PythonSlicer executable with the input redirected
@@ -242,8 +246,13 @@ class Process(qt.QProcess):
   def onFinished(self, logic, exitCode, exitStatus):
     logging.info(f'finished, code {exitCode}, status {exitStatus}')
     stdout = self.readAllStandardOutput()
-    self.useProcessOutput(stdout.data())
-    logic.onProcessFinished(self)
+    try:
+      self.useProcessOutput(stdout.data())
+    except:
+      self.success = False
+      raise
+    finally:
+      logic.onProcessFinished(self)
 
   @abc.abstractmethod
   def prepareProcessInput(self):
@@ -341,8 +350,10 @@ class ProcessesTest(ScriptedLoadableModuleTest):
     modelNode.SetAndObservePolyData(sphereSource.GetOutputDataObject(0))
 
     def onProcessesCompleted(testClass):
-      # when first test finishes, run second test
+      testClass.assertEqual(len(logic.state()['Completed']), 50)
+      testClass.assertEqual(len(logic.state()['Failed']), 0)
       testClass.delayDisplay('Test passed!')
+      # when first test finishes, run second test
       testClass.setUp()
       testClass.test_VolumeProcesses()
 
@@ -366,6 +377,8 @@ class ProcessesTest(ScriptedLoadableModuleTest):
 
     def onProcessesCompleted(testClass):
       # when test finishes, we succeeded!
+      testClass.assertEqual(len(logic.state()['Completed']), 5)
+      testClass.assertEqual(len(logic.state()['Failed']), 0)
       testClass.delayDisplay('Test passed!')
 
     logic = ProcessesLogic(completedCallback=lambda : onProcessesCompleted(self))
