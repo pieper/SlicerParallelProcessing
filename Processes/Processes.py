@@ -18,7 +18,7 @@ class Processes(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Processes" # TODO make this more human readable by adding spaces
+    self.parent.title = "Processes"
     self.parent.categories = ["Developer Tools"]
     self.parent.dependencies = []
     self.parent.contributors = ["Steve Pieper (Isomics, Inc.)"]
@@ -132,8 +132,7 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
       self.maximumRunningProcesses = os.cpu_count()
     self.completedCallback = completedCallback
 
-    self.QProcessStates = {0: 'NotRunning', 1: 'Starting', 2: 'Running',}
-    self.processStates = ["Pending", "Running", "Completed"]
+    self.processStates = ["Pending", "Running", "Completed", "Failed"]
     self.__initializeProcessLists()
 
   def __initializeProcessLists(self):
@@ -197,7 +196,10 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
 
   def onProcessFinished(self,process):
     self.processLists["Running"].remove(process)
-    self.processLists["Completed"].append(process)
+    if process.success:
+      self.processLists["Completed"].append(process)
+    else:
+      self.processLists["Failed"].append(process)
     self.saveState()
     self.__checkFishished()
 
@@ -205,11 +207,17 @@ class Process(qt.QProcess):
   """
   """
 
+  QProcessStateNames = {qt.QProcess.NotRunning: 'NotRunning', qt.QProcess.Starting: 'Starting', qt.QProcess.Running: 'Running'}
+  QProcessErrorNames = {qt.QProcess.FailedToStart: 'FailedToStart', qt.QProcess.Crashed: 'Crashed', qt.QProcess.Timedout: 'Timedout',
+    qt.QProcess.WriteError: 'WriteError', qt.QProcess.ReadError: 'ReadError', qt.QProcess.UnknownError: 'UnknownError'}
+  QProcessExitStatusNames = {qt.QProcess.NormalExit: 'NormalExit', qt.QProcess.CrashExit: 'CrashExit'}
+
   def __init__(self, scriptPath):
     super().__init__()
     self.name = "Process"
     self.processState = "Pending"
     self.scriptPath = scriptPath
+    self.success = True
 
   def run(self, logic):
     self.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
@@ -219,9 +227,7 @@ class Process(qt.QProcess):
     self.start("PythonSlicer", [self.scriptPath,])
 
   def onStateChanged(self, newState):
-    logging.info('-'*40)
-    logging.info(f'qprocess state code is: {self.state()}')
-    logging.info(f'qprocess error code is: {self.error()}')
+    logging.info(f'{self.name}: state: {Process.QProcessStateNames[self.state()]}, last error: {Process.QProcessErrorNames[self.error()]}')
 
   def onStarted(self):
     """ This method will write the prepareProcessInput to the stdin
@@ -229,21 +235,26 @@ class Process(qt.QProcess):
     outside of this module, you can add some code like this:
 
       with open("/tmp/inputToProcess", "w") as fp:
-        fp.buffer.write(self.inputToProcess())
+        fp.buffer.write(self.prepareProcessInput())
       print("PythonSlicer", [self.scriptPath,])
 
     and then run the PythonSlicer executable with the input redirected
     from the tmp file.
     """
-    logging.info("writing")
+    logging.info(f"{self.name}: writing input")
     self.write(self.prepareProcessInput())
     self.closeWriteChannel()
 
   def onFinished(self, logic, exitCode, exitStatus):
-    logging.info(f'finished, code {exitCode}, status {exitStatus}')
+    logging.info(f'{self.name}: finished, exit code: {exitCode}, exit status: {Process.QProcessExitStatusNames[exitStatus]}')
     stdout = self.readAllStandardOutput()
-    self.useProcessOutput(stdout.data())
-    logic.onProcessFinished(self)
+    try:
+      self.useProcessOutput(stdout.data())
+    except:
+      self.success = False
+      raise
+    finally:
+      logic.onProcessFinished(self)
 
   @abc.abstractmethod
   def prepareProcessInput(self):
@@ -341,8 +352,10 @@ class ProcessesTest(ScriptedLoadableModuleTest):
     modelNode.SetAndObservePolyData(sphereSource.GetOutputDataObject(0))
 
     def onProcessesCompleted(testClass):
-      # when first test finishes, run second test
+      testClass.assertEqual(len(logic.state()['Completed']), 50)
+      testClass.assertEqual(len(logic.state()['Failed']), 0)
       testClass.delayDisplay('Test passed!')
+      # when first test finishes, run second test
       testClass.setUp()
       testClass.test_VolumeProcesses()
 
@@ -366,6 +379,8 @@ class ProcessesTest(ScriptedLoadableModuleTest):
 
     def onProcessesCompleted(testClass):
       # when test finishes, we succeeded!
+      testClass.assertEqual(len(logic.state()['Completed']), 5)
+      testClass.assertEqual(len(logic.state()['Failed']), 0)
       testClass.delayDisplay('Test passed!')
 
     logic = ProcessesLogic(completedCallback=lambda : onProcessesCompleted(self))
