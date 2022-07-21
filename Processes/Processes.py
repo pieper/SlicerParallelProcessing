@@ -227,7 +227,14 @@ class Process(qt.QProcess):
     self.start("PythonSlicer", [self.scriptPath,])
 
   def onStateChanged(self, newState):
-    logging.info(f'{self.name}: state: {Process.QProcessStateNames[self.state()]}, last error: {Process.QProcessErrorNames[self.error()]}')
+    msg = f'{self.name}: state: {Process.QProcessStateNames[self.state()]}'
+
+    # qt.QProcess.UnknownError usually means that there is no error, therefore
+    # to prevent polluting the logs and confusint users, we don't print UnknownError.
+    if self.error() != qt.QProcess.UnknownError:
+      msg += f', last error: {Process.QProcessErrorNames[self.error()]}'
+
+    logging.info(msg)
 
   def onStarted(self):
     """ This method will write the prepareProcessInput to the stdin
@@ -246,9 +253,12 @@ class Process(qt.QProcess):
     self.closeWriteChannel()
 
   def onFinished(self, logic, exitCode, exitStatus):
-    logging.info(f'{self.name}: finished, exit code: {exitCode}, exit status: {Process.QProcessExitStatusNames[exitStatus]}')
-    stdout = self.readAllStandardOutput()
     try:
+      logging.info(f'{self.name}: finished, exit code: {exitCode}, exit status: {Process.QProcessExitStatusNames[exitStatus]}')
+      stdout = self.readAllStandardOutput()
+      stderr = self.readAllStandardError()
+      if stderr:
+        logging.error(f'{self.name}: error output:\n---\n{stderr.data().decode()}---')
       self.useProcessOutput(stdout.data())
     except:
       self.success = False
