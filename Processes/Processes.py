@@ -222,8 +222,8 @@ class Process(qt.QProcess):
   def run(self, logic):
     self.connect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
     self.connect('started()', self.onStarted)
-    finishedSlot = lambda exitCode, exitStatus : self.onFinished(logic, exitCode, exitStatus)
-    self.connect('finished(int,QProcess::ExitStatus)', finishedSlot)
+    self.finishedSlot = lambda exitCode, exitStatus : self.onFinished(logic, exitCode, exitStatus)
+    self.connect('finished(int,QProcess::ExitStatus)', self.finishedSlot)
     self.start("PythonSlicer", [self.scriptPath,])
 
   def onStateChanged(self, newState):
@@ -265,6 +265,9 @@ class Process(qt.QProcess):
       raise
     finally:
       logic.onProcessFinished(self)
+    self.disconnect('stateChanged(QProcess::ProcessState)', self.onStateChanged)
+    self.disconnect('started()', self.onStarted)
+    self.disconnect('finished(int,QProcess::ExitStatus)', self.finishedSlot)
 
   @abc.abstractmethod
   def prepareProcessInput(self):
