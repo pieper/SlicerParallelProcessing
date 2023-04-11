@@ -402,7 +402,7 @@ class ProcessesTest(ScriptedLoadableModuleTest):
 
     for radius in range(5):
       filterProcess = VolumeFilterProcess(scriptPath, volumeNode, radius*5)
-      logic.addProcess(VolumeFilterProcess(scriptPath, volumeNode, radius))
+      logic.addProcess(filterProcess)
 
     logic.run()
 
